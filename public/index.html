@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Study Room Booking System</title>
+</head>
+<body>
+
+    <h1>Study Room Booking System</h1>
+
+
+    <h3>Add a New Booking</h3>
+    <form id="bookingForm">
+        <p>
+            <label>Study Room:</label>
+            <select id="room" required>
+                <option value="">-- Select Room --</option>
+                <option value="Room A">Room A</option>
+                <option value="Room B">Room B</option>
+                <option value="Room C">Room C</option>
+            </select>
+        </p>
+        <p>
+            <label>Student Name:</label>
+            <input type="text" id="studentName" required>
+        </p>
+        <p>
+            <label>Date:</label>
+            <input type="date" id="date" required>
+        </p>
+        <p>
+            <label>Start Time:</label>
+            <input type="time" id="startTime" required>
+        </p>
+        <p>
+            <label>End Time:</label>
+            <input type="time" id="endTime" required>
+        </p>
+        <button type="submit">Submit Booking</button>
+    </form>
+    <div id="formFeedback"></div>
+
+    <hr>
+
+
+    <h3>Search Booking by ID</h3>
+    <input type="text" id="searchId" placeholder="Enter booking ID">
+    <button onclick="searchBookingById()">Search</button>
+    <div id="searchResult"></div>
+
+    <hr>
+
+
+    <h3>All Active Bookings</h3>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Room</th>
+                <th>Student</th>
+                <th>Date</th>
+                <th>Time Window</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="bookingsTableBody">
+
+        </tbody>
+    </table>
+
+    <script>
+        const bookingForm = document.getElementById('bookingForm');
+        const formFeedback = document.getElementById('formFeedback');
+        const bookingsTableBody = document.getElementById('bookingsTableBody');
+        const searchId = document.getElementById('searchId');
+        const searchResult = document.getElementById('searchResult');
+
+        function clearFeedbacks() {
+            formFeedback.innerHTML = '';
+            searchResult.innerHTML = '';
+        }
+
+
+        async function loadAllBookings() {
+            const response = await fetch('/api/bookings');
+            const bookings = await response.json();
+            
+            bookingsTableBody.innerHTML = '';
+            
+            if (bookings.length === 0) {
+                bookingsTableBody.innerHTML = `<tr><td colspan="6">No scheduled bookings found.</td></tr>`;
+                return;
+            }
+
+            bookings.forEach(b => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${b.id}</td>
+                    <td>${b.room}</td>
+                    <td>${b.student_name}</td>
+                    <td>${b.date}</td>
+                    <td>${b.start_time} - ${b.end_time}</td>
+                    <td><button onclick="deleteBooking('${b.id}')">Delete</button></td>
+                `;
+                bookingsTableBody.appendChild(row);
+            });
+        }
+
+
+        bookingForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearFeedbacks();
+
+            const payload = {
+                room: document.getElementById('room').value,
+                student_name: document.getElementById('studentName').value,
+                date: document.getElementById('date').value,
+                start_time: document.getElementById('startTime').value,
+                end_time: document.getElementById('endTime').value
+            };
+
+            const response = await fetch('/api/bookings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                formFeedback.innerHTML = `<p style="color:green;">Success! ID: ${result.id}</p>`;
+                bookingForm.reset();
+                loadAllBookings();
+            } else {
+                formFeedback.innerHTML = `<p style="color:red;">Error: ${result.error}</p>`;
+            }
+        });
+
+        async function searchBookingById() {
+            clearFeedbacks();
+            const id = searchId.value.trim();
+            if (!id) return;
+
+            const response = await fetch(`/api/bookings/${id}`);
+            const result = await response.json();
+
+            if (response.ok) {
+                searchResult.innerHTML = `
+                    <p><strong>Booking Found:</strong><br>
+                    Student: ${result.student_name}<br>
+                    Room: ${result.room}<br>
+                    Date: ${result.date} (${result.start_time} - ${result.end_time})</p>
+                `;
+            } else {
+                searchResult.innerHTML = `<p style="color:red;">Error: ${result.error}</p>`;
+            }
+        }
+
+        async function deleteBooking(id) {
+            clearFeedbacks();
+            const response = await fetch(`/api/bookings/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                loadAllBookings();
+            } else {
+                alert("Failed to delete booking.");
+            }
+        }
+
+       
+        loadAllBookings();
+    </script>
+</body>
+</html>
